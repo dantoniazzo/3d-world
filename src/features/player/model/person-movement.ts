@@ -18,6 +18,7 @@ const JUMP_IMPULSE = 0.05;
 const GROUND_THRESHOLD = 0.1;
 const ROTATION_SPEED = 10;
 const RUN_TIMESCALE = 2;
+const CROSSFADE_DURATION = 0.2;
 
 export interface PersonMovementProps extends ThirdPersonCameraProps {
   model: GLTF & ObjectMap;
@@ -56,12 +57,16 @@ export const usePersonMovement = ({
       runTimeScaleSet.current = true;
     }
 
-    // Switch animation only when state changes
+    // Crossfade animation on state change
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
     const desired = isMoving ? (keys.shift ? "Run" : "Walk") : "Survey";
     if (desired !== currentAnim.current) {
-      actions[currentAnim.current]?.stop();
-      actions[desired]?.play();
+      const prev = actions[currentAnim.current];
+      const next = actions[desired];
+      if (next) {
+        next.reset().fadeIn(CROSSFADE_DURATION).play();
+        prev?.fadeOut(CROSSFADE_DURATION);
+      }
       currentAnim.current = desired;
     }
 

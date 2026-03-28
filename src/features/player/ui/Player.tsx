@@ -1,4 +1,4 @@
-import { RigidBody, RapierRigidBody } from "@react-three/rapier";
+import { RigidBody, RapierRigidBody, CuboidCollider } from "@react-three/rapier";
 import { useRef } from "react";
 import { useThirdPersonCamera } from "../model/person-camera";
 import { usePersonMovement } from "../model/person-movement";
@@ -6,6 +6,7 @@ import { useGLTF } from "@react-three/drei";
 import { Vector3 } from "three";
 
 const DAMPING = 3;
+const DEFAULT_POSITION = new Vector3(0, 0.05, 0);
 
 export interface PersonProps {
   isLocalUser?: boolean;
@@ -13,7 +14,7 @@ export interface PersonProps {
 }
 
 export const Player = (props: PersonProps) => {
-  const { initialPosition = new Vector3(0, 2, 0) } = props;
+  const { initialPosition = DEFAULT_POSITION } = props;
   const body = useRef<RapierRigidBody | null>(null);
   const model = useGLTF("/soldier.glb");
 
@@ -29,13 +30,14 @@ export const Player = (props: PersonProps) => {
   return (
     <RigidBody
       ref={body}
-      colliders="cuboid"
+      colliders={false}
       linearDamping={DAMPING}
       friction={0.5}
       rotation={[0, Math.PI, 0]}
       lockRotations
       position={initialPosition}
     >
+      <CuboidCollider args={[0.3, 0.9, 0.3]} position={[0, 0.9, 0]} />
       <primitive scale={1} object={model.scene} castShadow />
     </RigidBody>
   );

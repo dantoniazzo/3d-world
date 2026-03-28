@@ -1,114 +1,98 @@
 import { useFrame, type ObjectMap } from "@react-three/fiber";
 import { type ThirdPersonCameraProps } from "./person-camera";
 import { useAnimations, useKeyboardControls } from "@react-three/drei";
+import { useRef } from "react";
 import * as THREE from "three";
 import { type GLTF } from "three-stdlib";
+
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _moveDir = new THREE.Vector3();
+const _targetQuat = new THREE.Quaternion();
+const _currentQuat = new THREE.Quaternion();
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+const WALK_SPEED = 0.75;
+const RUN_SPEED = 1.5;
+const JUMP_IMPULSE = 0.05;
+const GROUND_THRESHOLD = 0.1;
+const ROTATION_SPEED = 10;
+const RUN_TIMESCALE = 2;
 
 export interface PersonMovementProps extends ThirdPersonCameraProps {
   model: GLTF & ObjectMap;
   initialPosition: THREE.Vector3;
 }
 
-export const usePersonMovement = (props: PersonMovementProps) => {
-  const animations = useAnimations(props.model.animations, props.model.scene);
+export const usePersonMovement = ({
+  target,
+  model,
+  initialPosition,
+}: PersonMovementProps) => {
+  const { actions } = useAnimations(model.animations, model.scene);
   const [, getKeys] = useKeyboardControls();
+  const currentAnim = useRef("Survey");
+  const runTimeScaleSet = useRef(false);
 
-  const reset = () => {
-    if (!props.target) return;
-    props.target.setTranslation(props.initialPosition, true);
-    props.target.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    props.target.setAngvel({ x: 0, y: 0, z: 0 }, true);
-  };
-  const jumpUp = () => {
-    if (!props.target) return;
-    const translation = props.target.translation();
-    if (translation.y < 0.1) {
-      props.target.applyImpulse({ x: 0, y: 0.05, z: 0 }, true);
-    }
-  };
+  useFrame(({ camera }, delta) => {
+    if (!target) return;
 
-  useFrame((state, delta) => {
-    if (!props.target) return;
-    const speed = getKeys().shift ? 1.5 : 0.75;
+    const keys = getKeys();
 
-    // Get camera's forward and right directions
-    const cameraForward = new THREE.Vector3();
-    state.camera.getWorldDirection(cameraForward);
-    cameraForward.y = 0;
-    cameraForward.normalize();
-
-    const cameraRight = new THREE.Vector3(cameraForward.z, 0, -cameraForward.x);
-
-    // Calculate movement direction
-    const moveDir = new THREE.Vector3(0, 0, 0);
-    if (getKeys().forward) moveDir.add(cameraForward);
-    if (getKeys().back) moveDir.sub(cameraForward);
-    if (getKeys().right) moveDir.sub(cameraRight);
-    if (getKeys().left) moveDir.add(cameraRight);
-    if (getKeys().jump) jumpUp();
-    if (getKeys().reset) reset();
-
-    const walk = animations.actions["Walk"];
-    const run = animations.actions["Run"];
-    const idle = animations.actions["Survey"];
-    if (run) run.timeScale = 2; // Adjust run speed
-    if (
-      getKeys().forward ||
-      getKeys().back ||
-      getKeys().left ||
-      getKeys().right
-    ) {
-      if (getKeys().shift) {
-        idle?.stop();
-        walk?.stop();
-        run?.play();
-      } else {
-        idle?.stop();
-        run?.stop();
-        walk?.play();
-      }
-    } else {
-      idle?.play();
-      walk?.stop();
-      run?.stop();
+    if (keys.reset) {
+      target.setTranslation(initialPosition, true);
+      target.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      target.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      return;
     }
 
-    if (moveDir.lengthSq() > 0) {
-      moveDir.normalize();
-
-      const newPosition = {
-        x: moveDir.x * speed * delta,
-        y: 0,
-        z: moveDir.z * speed * delta,
-      };
-      // Move character
-      props.target.applyImpulse(newPosition, true);
-
-      // Calculate props.target rotation angle based on movement direction
-      const targetAngle = Math.atan2(moveDir.x, moveDir.z);
-
-      // Interpolate towards target angle using quaternions for smooth rotation
-      const targetQuaternion = new THREE.Quaternion();
-      targetQuaternion.setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        targetAngle,
-      );
-
-      // Retrieve the current rotation as a quaternion
-      const currentQuaternion = new THREE.Quaternion();
-      const currentRotation = props.target.rotation();
-      currentQuaternion.set(
-        currentRotation.x,
-        currentRotation.y,
-        currentRotation.z,
-        currentRotation.w,
-      );
-
-      // Smoothly interpolate rotation with quaternion slerp
-      currentQuaternion.slerp(targetQuaternion, 10 * delta); // 10 * delta adjusts rotation speed
-
-      // Apply the new rotation to the target
-      props.target.setRotation(currentQuaternion, true);
+    if (keys.jump && target.translation().y < GROUND_THRESHOLD) {
+      target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
     }
+
+    // Set run animation speed once
+    if (!runTimeScaleSet.current && actions["Run"]) {
+      actions["Run"].timeScale = RUN_TIMESCALE;
+      runTimeScaleSet.current = true;
+    }
+
+    // Switch animation only when state changes
+    const isMoving = keys.forward || keys.back || keys.left || keys.right;
+    const desired = isMoving ? (keys.shift ? "Run" : "Walk") : "Survey";
+    if (desired !== currentAnim.current) {
+      actions[currentAnim.current]?.stop();
+      actions[desired]?.play();
+      currentAnim.current = desired;
+    }
+
+    if (!isMoving) return;
+
+    // Camera-relative movement direction
+    camera.getWorldDirection(_forward);
+    _forward.y = 0;
+    _forward.normalize();
+    _right.set(-_forward.z, 0, _forward.x);
+
+    _moveDir.set(0, 0, 0);
+    if (keys.forward) _moveDir.add(_forward);
+    if (keys.back) _moveDir.sub(_forward);
+    if (keys.right) _moveDir.add(_right);
+    if (keys.left) _moveDir.sub(_right);
+    _moveDir.normalize();
+
+    const speed = keys.shift ? RUN_SPEED : WALK_SPEED;
+    target.applyImpulse(
+      { x: _moveDir.x * speed * delta, y: 0, z: _moveDir.z * speed * delta },
+      true,
+    );
+
+    // Smooth rotation towards movement direction
+    const targetAngle = Math.atan2(_moveDir.x, _moveDir.z);
+    _targetQuat.setFromAxisAngle(Y_AXIS, targetAngle);
+
+    const rot = target.rotation();
+    _currentQuat.set(rot.x, rot.y, rot.z, rot.w);
+    _currentQuat.slerp(_targetQuat, ROTATION_SPEED * delta);
+    target.setRotation(_currentQuat, true);
   });
 };

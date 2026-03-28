@@ -17,7 +17,6 @@ const RUN_SPEED = 1.5;
 const JUMP_IMPULSE = 0.05;
 const GROUND_THRESHOLD = 0.1;
 const ROTATION_SPEED = 10;
-const RUN_TIMESCALE = 2;
 const CROSSFADE_DURATION = 0.2;
 
 export interface PersonMovementProps extends ThirdPersonCameraProps {
@@ -32,8 +31,7 @@ export const usePersonMovement = ({
 }: PersonMovementProps) => {
   const { actions } = useAnimations(model.animations, model.scene);
   const [, getKeys] = useKeyboardControls();
-  const currentAnim = useRef("Survey");
-  const runTimeScaleSet = useRef(false);
+  const currentAnim = useRef("Idle");
 
   useFrame(({ camera }, delta) => {
     if (!target) return;
@@ -51,15 +49,9 @@ export const usePersonMovement = ({
       target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
     }
 
-    // Set run animation speed once
-    if (!runTimeScaleSet.current && actions["Run"]) {
-      actions["Run"].timeScale = RUN_TIMESCALE;
-      runTimeScaleSet.current = true;
-    }
-
     // Crossfade animation on state change
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
-    const desired = isMoving ? (keys.shift ? "Run" : "Walk") : "Survey";
+    const desired = isMoving ? (keys.shift ? "Run" : "Walk") : "Idle";
     if (desired !== currentAnim.current) {
       const prev = actions[currentAnim.current];
       const next = actions[desired];

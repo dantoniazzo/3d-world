@@ -5,7 +5,7 @@ import { usePersonMovement } from "../model/person-movement";
 import { useGLTF } from "@react-three/drei";
 import { Vector3 } from "three";
 
-const DAMPING = 3; // Linear damping to prevent sliding
+const DAMPING = 3;
 
 export interface PersonProps {
   isLocalUser?: boolean;
@@ -13,16 +13,16 @@ export interface PersonProps {
 }
 
 export const Player = (props: PersonProps) => {
-  const { initialPosition = new Vector3() } = props;
+  const { initialPosition = new Vector3(0, 2, 0) } = props;
   const body = useRef<RapierRigidBody | null>(null);
-  const fox = useGLTF("/fox.glb");
+  const model = useGLTF("/soldier.glb");
 
   useThirdPersonCamera({
     target: body.current,
   });
   usePersonMovement({
     target: body.current,
-    model: fox,
+    model,
     initialPosition,
   });
 
@@ -33,9 +33,10 @@ export const Player = (props: PersonProps) => {
       linearDamping={DAMPING}
       friction={0.5}
       rotation={[0, Math.PI, 0]}
+      lockRotations
       position={initialPosition}
     >
-      <primitive scale={0.006} object={fox.scene} castShadow />
+      <primitive scale={1} object={model.scene} castShadow />
     </RigidBody>
   );
 };

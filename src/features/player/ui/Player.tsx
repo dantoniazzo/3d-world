@@ -33,7 +33,6 @@ export const Player = (props: PersonProps) => {
       colliders={false}
       linearDamping={DAMPING}
       friction={0.5}
-      rotation={[0, Math.PI, 0]}
       lockRotations
       position={initialPosition}
     >

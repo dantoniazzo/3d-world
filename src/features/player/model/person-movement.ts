@@ -12,9 +12,9 @@ const _targetQuat = new THREE.Quaternion();
 const _currentQuat = new THREE.Quaternion();
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-const WALK_SPEED = 0.75;
-const RUN_SPEED = 1.5;
-const JUMP_IMPULSE = 0.05;
+const WALK_SPEED = 5;
+const RUN_SPEED = 10;
+const JUMP_IMPULSE = 3;
 const GROUND_THRESHOLD = 0.1;
 const ROTATION_SPEED = 10;
 const CROSSFADE_DURATION = 0.2;
@@ -84,7 +84,7 @@ export const usePersonMovement = ({
     );
 
     // Smooth rotation towards movement direction
-    const targetAngle = Math.atan2(_moveDir.x, _moveDir.z);
+    const targetAngle = Math.atan2(_moveDir.x, _moveDir.z) + Math.PI;
     _targetQuat.setFromAxisAngle(Y_AXIS, targetAngle);
 
     const rot = target.rotation();

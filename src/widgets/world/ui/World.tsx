@@ -2,6 +2,7 @@ import { PerspectiveCamera, OrbitControls, Sky } from "@react-three/drei";
 import { Vector3 } from "three";
 import { Physics } from "@react-three/rapier";
 import { Ground } from "entities/ground";
+import { Trees } from "entities/trees";
 import { Player } from "features/player/ui/Player";
 
 export const World = () => {
@@ -21,6 +22,7 @@ export const World = () => {
         <Player />
         <Ground />
       </Physics>
+      <Trees />
     </>
   );
 };

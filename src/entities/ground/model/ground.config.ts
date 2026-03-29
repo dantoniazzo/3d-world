@@ -10,8 +10,8 @@ const noise2D = createNoise2D();
 
 /** Compute terrain height at a given (x, z) world position using layered simplex noise */
 export const getGroundHeight = (x: number, z: number): number => {
-  let y = 0.05 * noise2D(x / 50, z / 50);
-  y += 0.08 * noise2D(x / 100, z / 100);
-  y += 0.02 * noise2D(x / 10, z / 10);
+  let y = 1.5 * noise2D(x / 50, z / 50);
+  y += 3 * noise2D(x / 100, z / 100);
+  y += 0.15 * noise2D(x / 10, z / 10);
   return y;
 };

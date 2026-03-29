@@ -10,10 +10,10 @@ import {
   getGroundHeight,
 } from "../model/ground.config";
 
-const BLADE_WIDTH = 0.03;
-const BLADE_HEIGHT = 0.15;
+const BLADE_WIDTH = 0.015;
+const BLADE_HEIGHT = 0.05;
 const BLADE_JOINTS = 3;
-const INSTANCES = 500000;
+const INSTANCES = 1000000;
 
 /** Creates a PlaneGeometry with vertex heights from the noise-based terrain function */
 function createGroundGeometry(width: number) {
@@ -45,10 +45,7 @@ export const Ground = () => {
     [cloudMapRaw],
   );
 
-  const groundGeometry = useMemo(
-    () => createGroundGeometry(GROUND_WIDTH),
-    [],
-  );
+  const groundGeometry = useMemo(() => createGroundGeometry(GROUND_WIDTH), []);
 
   const grassGeometry = useMemo(
     () =>
@@ -84,7 +81,12 @@ export const Ground = () => {
   return (
     <>
       {/* Ground mesh with physics collider matching the terrain shape */}
-      <RigidBody type="fixed" colliders="trimesh" restitution={0} friction={0.7}>
+      <RigidBody
+        type="fixed"
+        colliders="trimesh"
+        restitution={0}
+        friction={0.7}
+      >
         <mesh>
           <primitive object={groundGeometry} />
           <meshStandardMaterial color={GROUND_COLOR} />

@@ -8,9 +8,9 @@ import { type GLTF } from "three-stdlib";
 // --- Constants ---
 
 const JUMP_IMPULSE = 1.5;
-/** Character is considered grounded when rigid body y is below this value.
- *  The capsule collider's rounded bottom rests slightly above the terrain surface. */
-const GROUND_THRESHOLD = 0.35;
+/** Character is grounded when vertical velocity magnitude is below this value.
+ *  Using velocity instead of Y position so hills/terrain height don't matter. */
+const GROUNDED_VELOCITY = 1.5;
 /** Duration (seconds) of the standing jump crouch wind-up before the impulse fires */
 const JUMP_DELAY = 0.5;
 
@@ -114,7 +114,7 @@ export const usePersonAnimation = ({
     if (!target) return;
 
     const keys = getKeys();
-    const isGrounded = target.translation().y < GROUND_THRESHOLD;
+    const isGrounded = Math.abs(target.linvel().y) < GROUNDED_VELOCITY;
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
 
     // ── Jump initiation (rising edge of Space key) ──────────────────────

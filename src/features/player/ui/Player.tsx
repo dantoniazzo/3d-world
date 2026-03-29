@@ -4,10 +4,11 @@ import { usePersonAnimation } from "../model/person-animation";
 import { useThirdPersonCamera } from "../model/person-camera";
 import { usePersonMovement } from "../model/person-movement";
 import { useGLTF } from "@react-three/drei";
+import { getGroundHeight } from "entities/ground";
 import { Vector3 } from "three";
 
 const DAMPING = 3;
-const DEFAULT_POSITION = new Vector3(0, 0.05, 0);
+const DEFAULT_POSITION = new Vector3(0, getGroundHeight(0, 0) + 0.05, 0);
 
 export interface PersonProps {
   isLocalUser?: boolean;

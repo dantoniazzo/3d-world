@@ -1,4 +1,4 @@
-import { PerspectiveCamera, OrbitControls } from "@react-three/drei";
+import { PerspectiveCamera, OrbitControls, Sky } from "@react-three/drei";
 import { Vector3 } from "three";
 import { Physics } from "@react-three/rapier";
 import { Ground } from "entities/ground";
@@ -14,7 +14,9 @@ export const World = () => {
         fov={75}
       />
       <OrbitControls makeDefault />
-      <ambientLight intensity={1.5} />
+      <Sky sunPosition={[10, 5, 10]} rayleigh={0.3} />
+      <ambientLight intensity={1} />
+      <directionalLight position={[10, 10, 5]} intensity={1.5} />
       <Physics gravity={[0, -9.81, 0]}>
         <Player />
         <Ground />

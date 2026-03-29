@@ -1,7 +1,7 @@
 import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody } from "@react-three/rapier";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { GrassGeometry, GrassMaterial } from "../model/grass";
 import {
@@ -68,9 +68,12 @@ export const Ground = () => {
     mat.uniforms.uCloud.value = cloudMap;
     mat.uniforms.alphaMap.value = alphaMap;
     mat.uniforms.uBladeHeight.value = BLADE_HEIGHT;
-    materialRef.current = mat;
     return mat;
   }, [cloudMap, alphaMap]);
+
+  useEffect(() => {
+    materialRef.current = grassMaterial;
+  }, [grassMaterial]);
 
   useFrame(({ clock: { elapsedTime } }) => {
     if (materialRef.current) {

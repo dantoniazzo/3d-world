@@ -18,14 +18,8 @@ export const Player = (props: PersonProps) => {
   const body = useRef<RapierRigidBody | null>(null);
   const model = useGLTF("/soldier.glb");
 
-  useThirdPersonCamera({
-    target: body.current,
-  });
-  usePersonMovement({
-    target: body.current,
-    model,
-    initialPosition,
-  });
+  useThirdPersonCamera({ targetRef: body });
+  usePersonMovement({ targetRef: body, model, initialPosition });
 
   return (
     <RigidBody

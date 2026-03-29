@@ -5,6 +5,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { type GLTF } from "three-stdlib";
 
+
 const _forward = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _moveDir = new THREE.Vector3();
@@ -26,7 +27,7 @@ export interface PersonMovementProps extends ThirdPersonCameraProps {
 }
 
 export const usePersonMovement = ({
-  target,
+  targetRef,
   model,
   initialPosition,
 }: PersonMovementProps) => {
@@ -37,12 +38,14 @@ export const usePersonMovement = ({
   const animInitialized = useRef(false);
 
   useFrame(({ camera }, delta) => {
-    if (!target) return;
-
+    // Start Idle animation as soon as actions are ready (before target check)
     if (!animInitialized.current && actions["Idle"]) {
       actions["Idle"].play();
       animInitialized.current = true;
     }
+
+    const target = targetRef.current;
+    if (!target) return;
 
     const keys = getKeys();
 

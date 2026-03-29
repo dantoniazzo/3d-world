@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { RapierRigidBody } from "@react-three/rapier";
 import { useMouseControls } from "features/controls";
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import * as THREE from "three";
 
 const _cameraPos = new THREE.Vector3();
@@ -14,10 +14,10 @@ const MIN_VERTICAL = 0.1;
 const MAX_VERTICAL = 0.51;
 
 export interface ThirdPersonCameraProps {
-  target: RapierRigidBody | null;
+  targetRef: RefObject<RapierRigidBody | null>;
 }
 
-export const useThirdPersonCamera = ({ target }: ThirdPersonCameraProps) => {
+export const useThirdPersonCamera = ({ targetRef }: ThirdPersonCameraProps) => {
   const mouse = useMouseControls();
   const angles = useRef({ horizontal: 0, vertical: 0.5 });
 
@@ -32,6 +32,7 @@ export const useThirdPersonCamera = ({ target }: ThirdPersonCameraProps) => {
   }, []);
 
   useFrame(({ camera }) => {
+    const target = targetRef.current;
     if (!target) return;
 
     const hasMovement = mouse.movementX !== 0 || mouse.movementY !== 0;

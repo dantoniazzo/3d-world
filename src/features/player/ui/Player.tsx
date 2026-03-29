@@ -1,5 +1,6 @@
 import { RigidBody, RapierRigidBody, CuboidCollider } from "@react-three/rapier";
 import { useRef } from "react";
+import { usePersonAnimation } from "../model/person-animation";
 import { useThirdPersonCamera } from "../model/person-camera";
 import { usePersonMovement } from "../model/person-movement";
 import { useGLTF } from "@react-three/drei";
@@ -16,10 +17,11 @@ export interface PersonProps {
 export const Player = (props: PersonProps) => {
   const { initialPosition = DEFAULT_POSITION } = props;
   const body = useRef<RapierRigidBody | null>(null);
-  const model = useGLTF("/soldier.glb");
+  const model = useGLTF("/brute.glb");
 
   useThirdPersonCamera({ targetRef: body });
-  usePersonMovement({ targetRef: body, model, initialPosition });
+  usePersonAnimation({ targetRef: body, model });
+  usePersonMovement({ targetRef: body, initialPosition });
 
   return (
     <RigidBody

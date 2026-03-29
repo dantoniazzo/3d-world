@@ -17,7 +17,7 @@ export const Ground = (props: GroundProps) => {
               : [groundConfig.size.x, groundConfig.size.y, groundConfig.size.z]
           }
         />
-        <meshBasicMaterial color="#048036" />
+        <meshBasicMaterial color="#303030" />
       </mesh>
     </RigidBody>
   );

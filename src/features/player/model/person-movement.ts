@@ -1,10 +1,8 @@
-import { useFrame, type ObjectMap } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { type ThirdPersonCameraProps } from "./person-camera";
-import { useAnimations, useKeyboardControls } from "@react-three/drei";
+import { useKeyboardControls } from "@react-three/drei";
 import { useRef } from "react";
 import * as THREE from "three";
-import { type GLTF } from "three-stdlib";
-
 
 const _forward = new THREE.Vector3();
 const _right = new THREE.Vector3();
@@ -15,79 +13,33 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 const WALK_SPEED = 5;
 const RUN_SPEED = 10;
-const JUMP_IMPULSE = 3;
-const GROUND_THRESHOLD = 0.15;
 const ROTATION_SPEED = 10;
-const CROSSFADE_DURATION = 0.2;
-const JUMP_CROSSFADE = 0.1;
 
 export interface PersonMovementProps extends ThirdPersonCameraProps {
-  model: GLTF & ObjectMap;
   initialPosition: THREE.Vector3;
 }
 
 export const usePersonMovement = ({
   targetRef,
-  model,
   initialPosition,
 }: PersonMovementProps) => {
-  const { actions } = useAnimations(model.animations, model.scene);
   const [, getKeys] = useKeyboardControls();
-  const currentAnim = useRef("Idle");
-  const wasJumpPressed = useRef(false);
-  const animInitialized = useRef(false);
+  const resetTriggered = useRef(false);
 
   useFrame(({ camera }, delta) => {
-    // Start Idle animation as soon as actions are ready (before target check)
-    if (!animInitialized.current && actions["Idle"]) {
-      actions["Idle"].play();
-      animInitialized.current = true;
-    }
-
     const target = targetRef.current;
     if (!target) return;
 
     const keys = getKeys();
 
-    if (keys.reset) {
+    if (keys.reset && !resetTriggered.current) {
       target.setTranslation(initialPosition, true);
       target.setLinvel({ x: 0, y: 0, z: 0 }, true);
       target.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      return;
     }
+    resetTriggered.current = !!keys.reset;
 
-    const isGrounded = target.translation().y < GROUND_THRESHOLD;
-
-    // Jump on rising edge only
-    if (keys.jump && isGrounded && !wasJumpPressed.current) {
-      target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
-    }
-    wasJumpPressed.current = !!keys.jump;
-
-    // Animation state
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
-    const desired = !isGrounded
-      ? "Jump"
-      : isMoving
-        ? keys.shift
-          ? "Run"
-          : "Walk"
-        : "Idle";
-
-    if (desired !== currentAnim.current) {
-      const prev = actions[currentAnim.current];
-      const next = actions[desired];
-      const fade =
-        desired === "Jump" || currentAnim.current === "Jump"
-          ? JUMP_CROSSFADE
-          : CROSSFADE_DURATION;
-      if (next) {
-        next.reset().fadeIn(fade).play();
-        prev?.fadeOut(fade);
-      }
-      currentAnim.current = desired;
-    }
-
     if (!isMoving) return;
 
     // Camera-relative movement direction
@@ -110,7 +62,7 @@ export const usePersonMovement = ({
     );
 
     // Smooth rotation towards movement direction
-    const targetAngle = Math.atan2(_moveDir.x, _moveDir.z) + Math.PI;
+    const targetAngle = Math.atan2(_moveDir.x, _moveDir.z);
     _targetQuat.setFromAxisAngle(Y_AXIS, targetAngle);
 
     const rot = target.rotation();

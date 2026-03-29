@@ -8,6 +8,7 @@ const _cameraPos = new THREE.Vector3();
 const _lookAt = new THREE.Vector3();
 
 const DISTANCE = 4;
+const LOOK_AT_HEIGHT = 0.9;
 const MOUSE_SENSITIVITY = 0.002;
 const ORBIT_SENSITIVITY = 0.005;
 const MIN_VERTICAL = 0.1;
@@ -19,7 +20,7 @@ export interface ThirdPersonCameraProps {
 
 export const useThirdPersonCamera = ({ targetRef }: ThirdPersonCameraProps) => {
   const mouse = useMouseControls();
-  const angles = useRef({ horizontal: 0, vertical: 0.5 });
+  const angles = useRef({ horizontal: 0, vertical: 0.15 });
 
   useEffect(() => {
     const canvas = document.querySelector("canvas");
@@ -51,15 +52,16 @@ export const useThirdPersonCamera = ({ targetRef }: ThirdPersonCameraProps) => {
 
     const { horizontal: theta, vertical: phi } = angles.current;
     const { x, y, z } = target.translation();
+    const centerY = y + LOOK_AT_HEIGHT;
     const cosPhi = Math.cos(phi);
 
     _cameraPos.set(
       x + DISTANCE * Math.sin(theta) * cosPhi,
-      y + DISTANCE * Math.sin(phi),
+      centerY + DISTANCE * Math.sin(phi),
       z + DISTANCE * Math.cos(theta) * cosPhi,
     );
 
     camera.position.copy(_cameraPos);
-    camera.lookAt(_lookAt.set(x, y, z));
+    camera.lookAt(_lookAt.set(x, centerY, z));
   });
 };

@@ -9,7 +9,7 @@ export const World = () => {
     <>
       <PerspectiveCamera
         makeDefault
-        position={new Vector3(0, 1, 3)}
+        position={new Vector3(0, 1.55, 3.96)}
         rotation={[0, 0, 0]}
         fov={75}
       />

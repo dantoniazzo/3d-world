@@ -1,4 +1,4 @@
-import { RigidBody, RapierRigidBody, CuboidCollider } from "@react-three/rapier";
+import { RigidBody, RapierRigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useRef } from "react";
 import { usePersonAnimation } from "../model/person-animation";
 import { useThirdPersonCamera } from "../model/person-camera";
@@ -33,7 +33,7 @@ export const Player = (props: PersonProps) => {
       lockRotations
       position={initialPosition}
     >
-      <CuboidCollider args={[0.3, 0.9, 0.3]} position={[0, 0.9, 0]} />
+      <CapsuleCollider args={[0.6, 0.3]} position={[0, 0.9, 0]} />
       <primitive scale={1} object={model.scene} castShadow />
     </RigidBody>
   );

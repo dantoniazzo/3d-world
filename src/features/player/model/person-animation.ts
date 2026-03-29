@@ -7,9 +7,10 @@ import { type GLTF } from "three-stdlib";
 
 // --- Constants ---
 
-const JUMP_IMPULSE = 3;
-/** Character is considered grounded when rigid body y is below this value */
-const GROUND_THRESHOLD = 0.15;
+const JUMP_IMPULSE = 1.5;
+/** Character is considered grounded when rigid body y is below this value.
+ *  The capsule collider's rounded bottom rests slightly above the terrain surface. */
+const GROUND_THRESHOLD = 0.35;
 /** Duration (seconds) of the standing jump crouch wind-up before the impulse fires */
 const JUMP_DELAY = 0.5;
 
@@ -21,6 +22,7 @@ const JUMP_IN_CROSSFADE = 0.1;
 const JUMP_OUT_CROSSFADE = 0.5;
 
 type JumpAnim = "jump" | "running-jump";
+type Anim = "idle" | "walk" | "run" | JumpAnim;
 
 const JUMP_ANIMS = new Set<string>(["jump", "running-jump"]);
 
@@ -47,21 +49,62 @@ export const usePersonAnimation = ({
   const [, getKeys] = useKeyboardControls();
 
   // Animation state
-  const currentAnim = useRef("idle");
+  const currentAnim = useRef<Anim>("idle");
   const animInitialized = useRef(false);
 
   // Jump state
   const wasJumpPressed = useRef(false);
   /** -1 = not crouching, >= 0 = elapsed crouch time (standing jump only) */
   const crouchTimer = useRef(-1);
-  /** Stays true from impulse until the character actually leaves the ground,
-   *  preventing the animation from flickering back to idle for 1-2 frames */
-  const awaitingLiftoff = useRef(false);
+  /** Frame counter after impulse — keeps jump animation active for a few frames
+   *  while the physics body hasn't risen above GROUND_THRESHOLD yet.
+   *  Counts down to 0, then expires. Prevents permanent lock if impulse is
+   *  too weak to clear the threshold. */
+  const liftoffFrames = useRef(0);
   /** Which jump animation to play for the current jump */
   const jumpAnim = useRef<JumpAnim>("jump");
 
+  /**
+   * Crossfade from the current animation to a new one.
+   *
+   * Uses `crossFadeFrom` which atomically fades out the previous action's weight
+   * while fading in the new action — this works correctly even when the previous
+   * action is a paused/clamped LoopOnce jump animation.
+   */
+  const transitionTo = (to: Anim, fadeDuration: number) => {
+    const next = actions[to];
+    if (!next) return;
+
+    // Configure jump animations to play once and hold the final frame
+    if (JUMP_ANIMS.has(to)) {
+      const clip = model.animations.find((c) => c.name === to);
+      if (clip) {
+        const action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
+    }
+
+    const prev = actions[currentAnim.current];
+
+    // Reset the target action (clears time, fading, warping; sets enabled=true)
+    next.reset();
+
+    // crossFadeFrom handles the weight blend atomically:
+    //   - calls prev.fadeOut(duration)  → weight 1→0
+    //   - calls next.fadeIn(duration)   → weight 0→1
+    // The mixer processes weight interpolants for all active actions (including
+    // paused/clamped ones), so the outgoing jump pose blends smoothly.
+    if (prev && prev !== next) {
+      next.crossFadeFrom(prev, fadeDuration, false);
+    }
+
+    next.play();
+    currentAnim.current = to;
+  };
+
   useFrame((_, delta) => {
-    // Play idle animation on the first frame (before rigid body is ready)
+    // ── Initialize idle animation on first frame ────────────────────────
     if (!animInitialized.current && actions["idle"]) {
       actions["idle"].play();
       animInitialized.current = true;
@@ -75,13 +118,19 @@ export const usePersonAnimation = ({
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
 
     // ── Jump initiation (rising edge of Space key) ──────────────────────
-    if (keys.jump && isGrounded && !wasJumpPressed.current && crouchTimer.current < 0) {
+    if (
+      keys.jump &&
+      isGrounded &&
+      !wasJumpPressed.current &&
+      crouchTimer.current < 0 &&
+      liftoffFrames.current === 0
+    ) {
       jumpAnim.current = isMoving ? "running-jump" : "jump";
 
       if (jumpAnim.current === "running-jump") {
         // Moving jump — apply impulse immediately, no crouch wind-up
         target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
-        awaitingLiftoff.current = true;
+        liftoffFrames.current = 10;
       } else {
         // Standing jump — start the crouch wind-up timer
         crouchTimer.current = 0;
@@ -100,21 +149,41 @@ export const usePersonAnimation = ({
           // Crouch phase complete — fire the impulse
           target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
           crouchTimer.current = -1;
-          awaitingLiftoff.current = true;
+          liftoffFrames.current = 10;
         }
       }
     }
 
-    // Clear liftoff flag once the character is actually airborne
-    if (!isGrounded) {
-      awaitingLiftoff.current = false;
+    // Liftoff counter: counts down each frame, clears immediately if airborne
+    if (liftoffFrames.current > 0) {
+      if (!isGrounded) {
+        liftoffFrames.current = 0;
+      } else {
+        liftoffFrames.current--;
+      }
     }
 
     // ── Determine desired animation ─────────────────────────────────────
     const isCrouching = crouchTimer.current >= 0;
-    const inJump = !isGrounded || isCrouching || awaitingLiftoff.current;
+    const isLiftingOff = liftoffFrames.current > 0;
 
-    const desired = inJump
+    // If a jump animation is currently playing, check whether it has finished.
+    // Keep playing the jump animation until it completes AND the character has landed.
+    const playingJump = JUMP_ANIMS.has(currentAnim.current);
+    let jumpAnimDone = false;
+    if (playingJump) {
+      const clip = model.animations.find((c) => c.name === currentAnim.current);
+      if (clip) {
+        const action = mixer.clipAction(clip);
+        jumpAnimDone = action.time >= clip.duration - 0.05;
+      }
+    }
+
+    const inJump = playingJump
+      ? !jumpAnimDone || !isGrounded // stay in jump until animation finishes AND landed
+      : !isGrounded || isCrouching || isLiftingOff;
+
+    const desired: Anim = inJump
       ? jumpAnim.current
       : isMoving
         ? keys.shift
@@ -122,31 +191,18 @@ export const usePersonAnimation = ({
           : "walk"
         : "idle";
 
-    // ── Crossfade on state change ───────────────────────────────────────
+    // ── Transition on state change ──────────────────────────────────────
     if (desired !== currentAnim.current) {
-      const next = actions[desired];
-      if (next) {
-        // Configure jump animations to play once and hold the final frame
-        if (JUMP_ANIMS.has(desired)) {
-          const clip = model.animations.find((c) => c.name === desired);
-          if (clip) {
-            const action = mixer.clipAction(clip);
-            action.setLoop(THREE.LoopOnce, 1);
-            action.clampWhenFinished = true;
-          }
-        }
+      const enteringJump = JUMP_ANIMS.has(desired);
+      const leavingJump = JUMP_ANIMS.has(currentAnim.current);
 
-        // Pick crossfade duration: fast into jumps, slow out of jumps, normal otherwise
-        const fade = JUMP_ANIMS.has(desired)
-          ? JUMP_IN_CROSSFADE
-          : JUMP_ANIMS.has(currentAnim.current)
-            ? JUMP_OUT_CROSSFADE
-            : CROSSFADE_DURATION;
+      const fade = enteringJump
+        ? JUMP_IN_CROSSFADE
+        : leavingJump
+          ? JUMP_OUT_CROSSFADE
+          : CROSSFADE_DURATION;
 
-        next.reset().fadeIn(fade).play();
-        actions[currentAnim.current]?.fadeOut(fade);
-      }
-      currentAnim.current = desired;
+      transitionTo(desired, fade);
     }
   });
 };

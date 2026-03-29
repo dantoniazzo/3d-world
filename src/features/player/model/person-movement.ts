@@ -15,9 +15,10 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const WALK_SPEED = 5;
 const RUN_SPEED = 10;
 const JUMP_IMPULSE = 3;
-const GROUND_THRESHOLD = 0.1;
+const GROUND_THRESHOLD = 0.15;
 const ROTATION_SPEED = 10;
 const CROSSFADE_DURATION = 0.2;
+const JUMP_CROSSFADE = 0.1;
 
 export interface PersonMovementProps extends ThirdPersonCameraProps {
   model: GLTF & ObjectMap;
@@ -32,9 +33,16 @@ export const usePersonMovement = ({
   const { actions } = useAnimations(model.animations, model.scene);
   const [, getKeys] = useKeyboardControls();
   const currentAnim = useRef("Idle");
+  const wasJumpPressed = useRef(false);
+  const animInitialized = useRef(false);
 
   useFrame(({ camera }, delta) => {
     if (!target) return;
+
+    if (!animInitialized.current && actions["Idle"]) {
+      actions["Idle"].play();
+      animInitialized.current = true;
+    }
 
     const keys = getKeys();
 
@@ -45,19 +53,34 @@ export const usePersonMovement = ({
       return;
     }
 
-    if (keys.jump && target.translation().y < GROUND_THRESHOLD) {
+    const isGrounded = target.translation().y < GROUND_THRESHOLD;
+
+    // Jump on rising edge only
+    if (keys.jump && isGrounded && !wasJumpPressed.current) {
       target.applyImpulse({ x: 0, y: JUMP_IMPULSE, z: 0 }, true);
     }
+    wasJumpPressed.current = !!keys.jump;
 
-    // Crossfade animation on state change
+    // Animation state
     const isMoving = keys.forward || keys.back || keys.left || keys.right;
-    const desired = isMoving ? (keys.shift ? "Run" : "Walk") : "Idle";
+    const desired = !isGrounded
+      ? "Jump"
+      : isMoving
+        ? keys.shift
+          ? "Run"
+          : "Walk"
+        : "Idle";
+
     if (desired !== currentAnim.current) {
       const prev = actions[currentAnim.current];
       const next = actions[desired];
+      const fade =
+        desired === "Jump" || currentAnim.current === "Jump"
+          ? JUMP_CROSSFADE
+          : CROSSFADE_DURATION;
       if (next) {
-        next.reset().fadeIn(CROSSFADE_DURATION).play();
-        prev?.fadeOut(CROSSFADE_DURATION);
+        next.reset().fadeIn(fade).play();
+        prev?.fadeOut(fade);
       }
       currentAnim.current = desired;
     }
